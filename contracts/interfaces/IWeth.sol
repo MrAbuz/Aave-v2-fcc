@@ -39,4 +39,5 @@ interface IWeth {
     function withdraw(uint256 wad) external;
 }
 
+//we just need the interface to get the ABI, not the entire contract
 //copied this from the patrick's github repo, but to really apply in the real world I think I should verify that this is 100% the interface of the Weth token

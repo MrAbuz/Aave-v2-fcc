@@ -12,12 +12,12 @@ async function getWeth() {
     const { deployer } = await getNamedAccounts() //we're gonna need an account
 
     // call the "deposit" function on the weth contract
-    // abi (we just need the interface to get the abi), then yarn hardhat compile it. got the interface from patrick github repo but should be easy to get from etherscan, and should probably check if its the exact real one to apply
+    // abi (we just need the 'interface' to get the abi), then yarn hardhat compile it. got the interface from patrick github repo but should be easy to get from etherscan, and should probably check if its the exact real one to apply
     // contract address: 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2 (weth mainnet address that we got from etherscan)
 
-    //getContractAt -> a function of ethers that allows us to get the contract at a specific address, nice!
-    //"IWeth" abi as the first parameter because we added the Iweth interface in a contracts folder and "yarn hardhat compile" it
-    //the address which for now we'll hardcode it
+    //getContractAt -> a function of ethers that allows us to get the contract at a specific address, finally!
+    //"IWeth" abi as the first parameter because we added the Iweth interface in a contracts folder and "yarn hardhat compile" it, so we got the abi
+    //the address which for now we'll hardcode it (we should put it in the helper hardhat config but we'll skip it)
     const iWeth = await ethers.getContractAt(
         "IWeth",
         "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
@@ -27,7 +27,7 @@ async function getWeth() {
     await tx.wait(1)
 
     const wethBalance = await iWeth.balanceOf(deployer) //we'll call the balanceOf() function of the weth contract to know the balance
-    console.log(`Got ${wethBalance.toString()} WETH`)
+    console.log(`Number of WETH Received: ${wethBalance.toString()} WETH`)
 }
 
 module.exports = { getWeth }
