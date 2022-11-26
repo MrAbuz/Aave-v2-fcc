@@ -4,7 +4,7 @@ const { getNamedAccounts, ethers } = require("hardhat")
 
 //in this script we're not gonna add the "main() .then( process.exit(0))... etc".
 //We're gonna create this getWeth.js just like kind of a module and we're gonna import it into our aaveBorrow.js
-//because of this we add "module.exports" istead. Interestiiiing
+//because of this we add "module.exports" instead. Interestiiiing
 
 const AMOUNT = ethers.utils.parseEther("0.02")
 
@@ -12,7 +12,7 @@ async function getWeth() {
     const { deployer } = await getNamedAccounts() //we're gonna need an account
 
     // call the "deposit" function on the weth contract
-    // abi (we just need the 'interface' to get the abi), then yarn hardhat compile it. got the interface from patrick github repo but should be easy to get from etherscan, and should probably check if its the exact real one to apply
+    // abi (we just need the 'interface' to get the abi), then yarn hardhat compile it. got the interface from patrick github repo but should be easy to get from etherscan or some docs, and should probably check if its the exact real one before applying this to my mev's etc
     // contract address: 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2 (weth mainnet address that we got from etherscan)
 
     //getContractAt -> a function of ethers that allows us to get the contract at a specific address, finally!
@@ -30,4 +30,4 @@ async function getWeth() {
     console.log(`Number of WETH Received: ${wethBalance.toString()} WETH`)
 }
 
-module.exports = { getWeth }
+module.exports = { getWeth, AMOUNT } //nice that we can export variables aswell

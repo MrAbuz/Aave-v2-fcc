@@ -1,6 +1,6 @@
 const { getNamedAccounts, ethers } = require("hardhat")
-const { getWeth } = require("../scripts/getWeth")
-//and we used "yarn hardhat run scripts/aaveBorrow.js" which will automatically run on a eth mainnet fork because we have that option on hardhat.config.js
+const { getWeth, AMOUNT } = require("../scripts/getWeth")
+//we used "yarn hardhat run scripts/aaveBorrow.js" which will automatically run on a eth mainnet fork because we have that option on hardhat.config.js
 
 async function main() {
     //Aave treats everything as an ERC20 token, so that its much easier and simpler to code it
@@ -14,6 +14,17 @@ async function main() {
 
     const lendingPool = await getLendingPool(deployer)
     console.log(`Aave v2 Lending Pool Address: ${lendingPool.address}`)
+
+    //Deposit
+    //(attention!) We notice in the deposit() function from github that it'll call the erc20 safeTransferFrom() function to pull some tokens from us, so we realize that we need to approve first.
+    //Probably in the frontend it makes us call the function first and then we call the deposit() after, but as we're calling deposit() programatically, we need to do it ourselves. My guess :P
+    //Lets approve:
+    const wethTokenAddress = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2" //this should be modularized aswell and imported from the helper hardhat config
+
+    await approveErc20(wethTokenAddress, lendingPool.address, AMOUNT, deployer)
+    console.log("Depositing...")
+    await lendingPool.deposit(wethTokenAddress, AMOUNT, deployer, 0) //this referralCode variable (the last one) will be 0 because its descontinued. And it wouldn't be for us anyway
+    console.log("Deposited!")
 }
 
 //Now we wanna start interacting with the aave protocol v2:
@@ -21,6 +32,7 @@ async function main() {
 //the way that aave works is that they actually have a contract which will point us to the correct contract (19:45:30)
 //the contract that we'll be doing all the lending with is this "LendingPool"
 //and there's actually a contract to get that contract address: "LendingPoolAddressesProvider", that will tell us the address of the "LendingPool"
+//Imo they probably do this bcuz LendingPool address changes and so they dont break the automations of people, we get the new addresses automatically from that provider.
 
 //Lending Pool Address Provider: 0xB53C1a33016B2DC2fF3653530bfF1848a515c8c5 (*)
 //Lending Pool:
@@ -47,6 +59,23 @@ async function getLendingPool(account) {
     return lendingPool
 }
 
+async function approveErc20(
+    erc20Address,
+    spenderAddress,
+    amountToSpend,
+    account
+) {
+    const erc20Token = await ethers.getContractAt(
+        "IERC20", //(****)
+        erc20Address,
+        account
+    )
+
+    const tx = await erc20Token.approve(spenderAddress, amountToSpend)
+    await tx.wait(1)
+    console.log("Approved!")
+}
+
 main()
     .then(() => process.exit(0))
     .catch((error) => {
@@ -55,18 +84,20 @@ main()
     })
 
 //https://docs.aave.com/developers/v/2.0/the-core-protocol/addresses-provider then click in "deployed contracts" to get the below link with the address
-//https://docs.aave.com/developers/v/2.0/deployed-contracts/deployed-contracts (*) for the address of LendingPoolAddressesProvider
+//https://docs.aave.com/developers/v/2.0/deployed-contracts/deployed-contracts (*) for the address of LendingPoolAddressesProvider, (and actually has a lot other addresses including LendingPool but probably LendingPool and other addresses change and in order to not break the automated systems of people, we get from that provider address and they update the provider, so our system always get updated automatically when they change. This is my guess :D)
 //https://docs.aave.com/developers/v/2.0/the-core-protocol/addresses-provider/ilendingpooladdressesprovider (**) for the interface of LendingPoolAddressesProvider
-
 //https://docs.aave.com/developers/v/2.0/the-core-protocol/lendingpool/ilendingpool (***) for the interface of LendingPool
-//Atention:
+
+//https://github.com/PatrickAlphaC/hardhat-defi-fcc/blob/main/contracts/interfaces/IERC20.sol (****) got the erc20 interface from patrick github but I might find it from openzepeling or something I think
+
+//Attention:
 //If I add some interface and it is importing some files from local places ("./"), search for its npm, yarn add --dev that npm and then change the location that its
 //importing from "./" to the folders that they are located in node_modules (as I did in ILendingPool.sol)
-//in this one actually we realise that its bugging because the interface is importing some files from some local places that we don't have, so
-//we searched for "@aave/protocol-v2 npm" or maybe could've been "aave protocol v2 npm" and we added the aave protocol v2 from npm with
-//yarn add --dev @aave/protocol-v2 (remember to do this when I copy some solidity and I dont have the files it imports in my local places)
+//in this one we realised that its bugging because the interface is importing some files from some local places that we don't have, so
+//we searched for "@aave/protocol-v2 npm" or maybe could've been "aave protocol v2 npm" also worked, and we added the aave protocol v2 from npm with
+//yarn add --dev @aave/protocol-v2.
 //and then we need to change those imports so that they don't come from our local places "./" but instead from the node_modules as i've did in "ILendingPool.sol"
-//so I look up the node_modules and find in which folder is it the file that they are trying to import and then its easy to point the location as I did there.
+//so I look up the node_modules and find in which folder the files are that they are trying to import and then its easy to point the location as I did there.
 
 //In the end we ended up deleting the "IlendingPoolAddressesProvider.sol" interface that we added, because the "ILendingPool" interface that we copy pasted after
 //was importing the "IlendingPoolAddressesProvider.sol" themselves, which made so that the "IlendingPoolAddressesProvider.sol" was being compiled twice, one from

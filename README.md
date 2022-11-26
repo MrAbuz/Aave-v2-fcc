@@ -10,6 +10,7 @@ On Aave:
 
 
 TradeOffs of FORKING mainnet eth to run the scripts / tests etc:
+(many times we can use this instead of mocks)
 
 Pros: Quick, easy, resemble what's on the mainnet
 Cons: We need an API, some contracts are complex to work with
