@@ -27,7 +27,7 @@ async function getWeth() {
     await tx.wait(1)
 
     const wethBalance = await iWeth.balanceOf(deployer) //we'll call the balanceOf() function of the weth contract to know the balance
-    console.log(`Number of WETH Received: ${wethBalance.toString()} WETH`)
+    console.log(`WETH Received: ${wethBalance.toString()} WETH`)
 }
 
 module.exports = { getWeth, AMOUNT } //nice that we can export variables aswell
