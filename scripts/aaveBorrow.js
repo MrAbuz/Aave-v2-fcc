@@ -19,6 +19,7 @@ async function main() {
     )
 
     // Deposit:
+    //
     //(attention!) We notice in the deposit() function from github that it'll call the erc20 safeTransferFrom() function to pull some tokens from us, so we realize that we need to approve first.
     //Probably in the frontend it makes us call the function first and then we call the deposit() after, but as we're calling deposit() programatically, we need to do it ourselves. My guess :P
     //Lets approve:
@@ -30,6 +31,7 @@ async function main() {
     console.log("Deposited!")
 
     // Borrow:
+    //
     // We wanna know: How much we have borrowed, how much we have in collateral, how much we can borrow
     // There's a function from aave that lets us do it: getUserAccountData() (*****)
     // Remember that we can only borrow a % of our collateral
@@ -39,22 +41,23 @@ async function main() {
         deployer
     )
     //Now we wanna know what's the conversion rate on DAI is? How much DAI can I borrow with "availableBorrowsETH"?
-    //The borrow function takes the amount of borrow denominated in the asset we wanna borrow I must guess
-    //Keep in mind that this "daiPrice" is DAI/ETH (not ETH/DAI), which returns 828957654412212 which is 0.000828957654412212 because it only has 15 digits (below 18 digits it has decimal cases)
+    //Because the borrow function takes the amount of borrow denominated in the asset we wanna borrow, in this case DAI.
+    //Keep in mind that this "daiPrice" we got from Chainlink is DAI/ETH (not ETH/DAI), which returns 828957654412212 which is 0.000828957654412212 because it only has 15 digits (below 18 digits it has decimal cases)
     //This price feed returns with 18 decimals because its DAI/ETH (we can call .decimals of AggregatorV3Interface)
-    //So 1 / 0.000828957654412212 is 1206 which is the eth price
+    //So 1 / 0.000828957654412212 is 1206 which is the eth price atm
     //1 / 0.000828957654412212 makes it ETH/DAI
     //need to understand the difference between toString() and toNumber()
 
-    const daiPrice = await getDaiPrice()
+    const daiPrice = await getDaiPrice() //DAI/ETH price
 
     const amountDaiToBorrow =
         availableBorrowsETH.toString() * 0.95 * (1 / daiPrice.toNumber())
     console.log(`You can borrow:${amountDaiToBorrow} DAI`)
 
-    //this gives us the amount of eth in dai: 18.9 DAI (or 18.9 usd). (*0.95 is just to not borrow the full amount that we can and be near limit)
+    //this gives us the amount of ETH in DAI that we can borrow: 18.9 DAI (or 18.9 usd). (*0.95 is just to not borrow the full amount that we can and be near limit)
     //but we want this amount in wei ("the dai token has 18 decimal places, similar to ethereum, so we need that amount in wei")
-    //in reality we ask for 18909289173660690000 wei (or wei version for DAI) because the erc20 has 18 decimal places (which visually for the users is 18.9 DAI)
+    //in reality we ask for 18909289173660690000 wei (or wei version for DAI) because the erc20 has 18 decimal places because its counted in wei
+    //(which visually for the users is 18.9 DAI)
     //for what I understand so far, when dealing with ERC20s I should always use them in wei considering that the ERC20 Im using has 18 decimal places.
     //(to remember: this wei was created because solidity cant deal with decimal places, so it considers the number in WEI 18 decimal cases bigger so that you can
     //transact 0.001 because in reality it is 1000000000000000 wei and like this it can deal with super low numbers and do math as if they are whole numbers, then
@@ -62,22 +65,34 @@ async function main() {
     const amountDaiToBorrowWei = ethers.utils.parseEther(
         amountDaiToBorrow.toString()
     )
+
+    const daiTokenAddress = "0x6B175474E89094C44Da98b954EedeAC495271d0F"
+    await borrowDai(
+        daiTokenAddress,
+        lendingPool,
+        amountDaiToBorrowWei,
+        deployer
+    )
+
+    await getBorrowUserData(lendingPool, deployer)
 }
-//Now we wanna start interacting with the aave protocol v2:
-//abi, address
-//the way that aave works is that they actually have a contract which will point us to the correct contract (19:45:30)
-//the contract that we'll be doing all the lending with is this "LendingPool"
-//and there's actually a contract to get that contract address: "LendingPoolAddressesProvider", that will tell us the address of the "LendingPool"
-//Imo they probably do this bcuz LendingPool address changes and so they dont break the automations of people, we get the new addresses automatically from that provider.
-
-//Lending Pool Address Provider: 0xB53C1a33016B2DC2fF3653530bfF1848a515c8c5 (*)
-//Lending Pool:
-
-//so let's create a function that will get us the "Lending Pool" address from the "LendingPoolAddressesProvider"
-//we have the address (docs *), so we need the abi: we can look it up directly in the blockchain(etherscan) or we can use the docs to pick the interface. (**)
-//remember that after copying the interface, we need to compile it to get the abi!
-
+//
+//
+//
 async function getLendingPool(account) {
+    //Now we wanna start interacting with the aave protocol v2:
+    //abi, address
+    //the way that aave works is that they actually have a contract which will point us to the correct contract (19:45:30)
+    //the contract that we'll be doing all the lending with is this "LendingPool"
+    //and there's actually a contract to get that contract address: "LendingPoolAddressesProvider", that will tell us the address of the "LendingPool"
+    //Imo they probably do this bcuz LendingPool address changes and so they dont break the automations of people, we get the new addresses automatically from that provider.
+
+    //Lending Pool Address Provider: 0xB53C1a33016B2DC2fF3653530bfF1848a515c8c5 (*)
+    //Lending Pool:
+
+    //so let's create a function that will get us the "Lending Pool" address from the "LendingPoolAddressesProvider"
+    //we have the address (docs *), so we need the abi: we can look it up directly in the blockchain(etherscan) or we can use the docs to pick the interface. (**)
+    //remember that after copying the interface, we need to compile it to get the abi!
     const lendingPoolAddressesProvider = await ethers.getContractAt(
         "ILendingPoolAddressesProvider",
         "0xB53C1a33016B2DC2fF3653530bfF1848a515c8c5",
@@ -145,8 +160,31 @@ async function getDaiPrice() {
     const price = (await daiEthPriceFeed.latestRoundData())[1]
     //(attention) This latestRoundData() returns a lot of variables and we just want the 2nd one (index 1), so we can do it like this. Wrap with () and add [1]
     //in the end representing the index. So nice!
+    //            Couldnt I do it aswell like "const { answer } = await daiEthPriceFeed.latestRoundData()", like we did in getBorrowUserData()?
     console.log(`The DAI/ETH price is ${price.toString()}`)
     return price
+}
+
+async function borrowDai(
+    daiAddress,
+    lendingPool,
+    amountDaiToBorrowWei,
+    account
+) {
+    const borrowTx = await lendingPool.borrow(
+        daiAddress,
+        amountDaiToBorrowWei,
+        1,
+        0,
+        account
+    )
+    await borrowTx.wait(1)
+    console.log("You've borrowed!")
+}
+
+async function repay(amount, daiAddress, lendingPool, account) {
+    //(attention) Now to repay we'll have to approve once again sending our DAI back to aave!
+    await approveErc20(daiAddress, lendingPool.address, amount, account)
 }
 
 main()
