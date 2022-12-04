@@ -66,13 +66,18 @@ async function main() {
         amountDaiToBorrow.toString()
     )
 
-    const daiTokenAddress = "0x6B175474E89094C44Da98b954EedeAC495271d0F"
+    const daiTokenAddress = "0x6B175474E89094C44Da98b954EedeAC495271d0F" //we should have it in helper hardhat config
     await borrowDai(
         daiTokenAddress,
         lendingPool,
         amountDaiToBorrowWei,
         deployer
     )
+
+    await getBorrowUserData(lendingPool, deployer)
+
+    //Repay:
+    await repay(amountDaiToBorrowWei, daiTokenAddress, lendingPool, deployer)
 
     await getBorrowUserData(lendingPool, deployer)
 }
@@ -142,7 +147,7 @@ async function getBorrowUserData(lendingPool, account) {
 }
 
 async function getDaiPrice() {
-    //nice function to convert the price of any asset (here its to know the dai value of an amount of ETH)
+    //nice function to know the price of any asset using chainlink (here its to know the dai value of an amount of ETH)
     //Aave has its own function that we can use to know the price conversion and it uses Chainlink too (******)
     //but since we know how to use the chainlink directly that's what we're gonna do (because aave gets it from the chainlink aggregator aswell)
     //got the chainlink aggregatorv3interface from patrick's github (*******) but we could get from chainlink github/docs or import from chainlink npm aswell. Nice!
@@ -185,6 +190,9 @@ async function borrowDai(
 async function repay(amount, daiAddress, lendingPool, account) {
     //(attention) Now to repay we'll have to approve once again sending our DAI back to aave!
     await approveErc20(daiAddress, lendingPool.address, amount, account)
+    const repayTx = await lendingPool.repay(daiAddress, amount, 1, account)
+    await repayTx.wait(1)
+    console.log("I paid it back!")
 }
 
 main()
@@ -219,4 +227,4 @@ main()
 //to the node modules. So we had 2 artifacts for the same name "IlendingPoolAddressesProvider.sol" which was throwing up an error. So Patrick said that since
 //we already have that one "IlendingPoolAddressesProvider.sol" in the node modules that is being compiled, we can delete ours because they are the same.
 
-//20:08:41
+//20:19:14
